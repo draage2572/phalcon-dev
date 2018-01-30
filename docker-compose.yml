@@ -1,0 +1,103 @@
+version: '2'
+
+services:
+  mongo:
+    restart: always
+    image: mongo:latest
+    expose:
+      - '27017'
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo:/data/db
+  
+  mysql:
+    restart: always
+    image: mysql:5.7
+    expose:
+      - '3306'
+    ports:
+      - '3306:3306'
+    volumes:
+      - mysql:/var/lib/mysql
+      - ./conf/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+    env_file:
+      - mysql.env
+  
+  phpmyadmin:
+    restart: always
+    image: phpmyadmin/phpmyadmin:4.7
+    depends_on:
+      - mysql
+    ports:
+      - '8081:80'
+    env_file:
+      - phpmyadmin.env
+    
+  memcached:
+    restart: always
+    image: memcached:1.4-alpine
+    ports:
+      - '11211:11211'
+
+  queue:
+    restart: always
+    image: phalconphp/beanstalkd:1.10
+    ports:
+      '11300:11300'
+    volumes:
+      - beanstalk:/var/lib/beanstalkd
+
+  redis:
+    restart: always
+    image: redis:3.2-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis:/data
+
+  elasticsearch:
+    image: elasticsearch:5.2-alpine
+    restart: always
+    expose:
+      - '9200'
+      - '9300'
+    ports:
+      - '9200:9200'
+      - '9300:9300'
+    env_file:
+      - elasticsearch.env
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+
+  fpm:
+    build:
+      context: ./fpm
+      dockerfile: Dockerfile
+    volumes:
+      - /var/www:/var/www
+
+  nginx:
+    image: phalconphp/nginx
+    links:
+      - fpm
+    expose:
+      - '8080'
+    ports:
+      - '8080:80'
+    volumes:
+      - ./conf/nginx/conf.d:/etc/nginx/conf.d
+      - ./conf/nginx/sites-enabled:/etc/nginx/sites-enabled
+      - /var/www:/var/www
+
+volumes:
+  mongo:
+    driver: local
+  mysql:
+    driver: local
+  beanstalk:
+    driver: local
+  redis:
+    driver: local
+  esdata:
+    driver: local
